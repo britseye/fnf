@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+<script src="/script/jquery.min.js" type="text/javascript"></script>
+<script src="/script/sha256.js"></script>
+<script>
+function processIt()
+{
+   var s = $('#go').val();
+   s = s.toLowerCase();
+   s = sha256(s);
+   var s1 = s.substr(0, 16);
+   var s2 = s.substr(16, 6);
+   localStorage.setItem("ff:gpkey", s1);
+   //alert(s1+"  "+s2);
+}
+</script>
+</head>
+<body>
+You need to do this only once before you start using Friends and Family. The phrase you are to enter will have been given to you
+by another member of the FF group. It is not case sensitive.<p>
+Nothing will be sent over the wire, so this initial setting is quite safe. Keep the memorable phrase confidential to the group.<p>
+This does not set your password. Your initial password will be given to you by the FF group member who sponsored/registered you.
+You should change it as soon as you start using FF.<p>
+Enter your memorable phrase:<br>
+<input type="text" id="thephrase" style="width:100%; font-size:14pt;"><p>
+<button type="button" id="go" onclick="processIt();" style="font-size:14pt;">Process it</button>
+</body>
+</html>

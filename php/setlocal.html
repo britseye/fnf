@@ -1,0 +1,77 @@
+<!doctype html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
+<link rel="shortcut icon" type="image/x-icon" href="favicon.ico" />
+<link rel="stylesheet" href="mfeed.css" type="text/css" media="screen" />
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1/jquery.min.js" type="text/javascript"></script>
+<script>
+function checkExists(lsname)
+{
+   if (localStorage.getItem(lsname) === null)
+      return false;
+   return true;
+}
+
+function setit()
+{
+   var cn = $('#ip1').val();
+   if (!cn || cn == "" || cn === null)
+   {
+      alert("Choose an item first!");
+      return;
+   }
+   var s = $('#ip2').val();
+   localStorage.setItem(cn, s);
+}
+
+function getit()
+{
+   var cn = $('#ip1').val();
+   if (!cn || cn == "" || cn === null)
+   {
+      alert("Choose an item first!");
+      return;
+   }
+   if (!checkExists(cn))
+   {
+      alert("There is no such key in local storage");
+      $('#ip2').val("");
+      return "";
+   }
+   s = localStorage.getItem(cn);
+   $('#ip2').val(s);
+   return s;
+}
+
+function removeit()
+{
+   var cn = $('#ip1').val();
+   if (cn == "")
+   {
+      alert("Choose an item first!");
+      return;
+   }
+   if (!checkExists(cn))
+   {
+      alert("There is no such key in local storage");
+      $('#ip2').val("");
+      return "";
+   }
+   localStorage.removeItem(cn);
+   $('#ip1').val("");
+   $('#ip2').val("");
+}
+
+$(function() {
+});
+</script>
+</head>
+<body class="bevstd" style="background-color: #eee;">
+   <input type="text" id="ip1" style="width:100%"></input>
+   <input type="text" id="ip2" style="width: 100%;"></input><p>
+   <button id="sb" type="button" onclick="setit();">Set It</button>
+   <button id="gb" type="button" onclick="getit();">Get It</button>
+   <button id="rb" type="button" onclick="removeit();">Remove It</button>
+</body>
+</html>
