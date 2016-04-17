@@ -1,1 +1,377 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-type" content="text/html;charset=UTF-8">
+<meta name='viewport' content='width=device-width, initial-scale=1.0, user-scalable=0'>
+<title>Friends and Family.</title>
+<!--<link href='https://fonts.googleapis.com/css?family=Kaushan+Script|Yellowtail'
+   rel='stylesheet' type='text/css'> -->
+<link rel="stylesheet" href="ff.css" type="text/css" media="screen">
+<script src="/script/jquery.min.js" type="text/javascript"></script>
+<script src="/script/jquery.form.js" type="text/javascript"></script>
+<script src="/script/tea.js"></script>
+<script src="/script/sha256.js"></script>
+<script src="ff.js"></script>
+<script>
+window.onpopstate = function(event) { changeState(event.state); };
+window.onbeforeunload = function(e) { amPolling(false); $.get('../php/fflogout.php?uid='+userInfo.id); };
+window.onerror = function (msg, url, lineNo, columnNo, error) { removeBadStatus(msg); };
+var userInfo = {
+   logType: 0,
+   id: -1,
+   name: "",
+   thumbURL: "",
+   flags: 0,
+   ctToken: "",
+   oid: -1,      // for messages
+   oname: ""
 
+}
+var amContext = {
+   taChanged: 0,
+   pollID: 0,
+   otherTaChanged: -1,
+   prevMsg: 0
+};
+var suspectStatus = -1;
+var suspectFile = -1;
+var atInit = true;
+var updateContext = { id: 1, comment: false };
+var postContext = { id: 0, text: "" };
+var commentContext = { id: 0, lastp: null, text: "" };
+var interval1;
+var individual = -1;
+var savedPosition;
+var mpFormsSetUp = false;
+var counter = 0;
+var saveThreads = '';
+
+$(function() {
+   initialize();
+});
+</script>
+</head>
+<body class="bodytxt">
+<div class="datadiv" id="appstate" data-container="" data-view="" data-component="" data-uid="0" data-oid="0"></div>
+<noscript><h1 style="color:red;">! Javascript turned off, page will not work at all!</h1></noscript>
+<!--
+<div id="fb-root"></div>-->
+<div id="shield"></div>
+<div id="mainpane" style="overflow-y: hidden; width:60%; margin-left:100px;">
+<div id="banner"
+style="position:relative; left:0; top:0; overflow: hidden; white-space: nowrap; font-family:helvetica;
+       font-style:italic; font-weight:800; font-size:14pt; color:#dddddd; margin-bottom:4px">
+FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF<br>
+&nbsp;&nbsp;FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF<br>
+FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF FnF
+</div> <!-- end of background fnfs -->
+<div style="position:absolute; left:0; top:0; z-order:2; width:60%; margin-left:100px;">
+<div style="font-family: 'Kaushan Script', cursive; font-size:30pt; color:#333333; position: relative; left:4mm; top:2mm;">Teales' FnF
+<img id="working" src="working.gif" style="display:none;">
+</div>
+<div id="loggeduser" style="position: relative; left:6mm; top:0; font-size:9pt; color:#333333;"></div>
+</div> <!-- end of customized name -->
+
+<div id="dlgcontainer" style="width:40%; margin-left:500px; margin-top:100px; display:none; z-index:20; position:fixed; left:0; top:0;">
+   <div id="logdlg" class="dialog formLayout mexdlg" style="display:none;">
+   <h3>Login is Required</h3>
+   <form id="login_form" method="post" enctype="text/plain" action="">
+   <div style="width:70%;">
+   <span style="vertical-align:middle;">User ID or Email:</span>
+   <input type="text" style="float:right;" id="userid" name="userid" value="">
+   </div>
+   <br style="clear:both;">
+   <div style="width:70%">
+   <span style="vertical-align:middle;">Password:</span>
+   <input style="float:right;" type="password" id="pass" name="pass" value="">
+   </div>
+   <p style="clear:both;">
+   <input type="checkbox" style="margin-left:1em;" id="remember" name="remember" checked>Remember Me</input><p>
+   <input type="submit" style="display:none;" id="logingo">
+   <label id="logingolabel" for="logingo" class="clicktext" style="margin-left:0.3em; cursor:pointer;">Log In</label>
+   </form>
+   </div>
+
+   <div id="regdlg" class="dialog formLayout mexdlg" style="display:none;" data-savedpos="0">
+   <h3>Register a New Member</h3>
+   <form id="register_form" method="post" enctype="multipart/form-data" action="register.php">
+   <input type="hidden" id="regsponsor" name="regsponsor" value="">
+   <label>User ID:</label><br><input type="text" id="ruserid" name="userid" placeholder="Brief, for login" value=""><br>
+   <label>Display name:</label><br><input type="text" id="rusername" name="username" placeholder="e.g. John Doe" value=""><br>
+   <label>Password:</label><br><input type="password" id="rpass1" name="pass1" placeholder="6 chars min" value=""><br>
+   <label>Repeat password:</label><br><input type="password" id="rpass2" name="pass2" value=""><br>
+   <label>Email address:</label><br><input type="text" id="remail" name="remail" value=""><br>
+   <label>Repeat email:</label><br><input type="text" id="remail2" name="remail2" value=""><p>
+   <span class="dialogX" style="cursor:pointer; margin-left:0.5em;" id="exclosec" onclick="switch2members();">X</span>
+   <span class="clicktext" style="cursor:pointer; margin-left:3em;" onclick="submitRegister();">Register</span>
+   </form>
+   </div>
+
+   <div id="extradlg" class="dialog formLayout mexdlg" style="display:none;" data-loaded="N" data-cu="" data-savedpos="0">
+   <h2>Modify User Details</h2>
+   <input type="hidden" id="whence" value="">
+   <form id="extra_form" method="post" enctype="multipart/form-data">
+   <input type="hidden" id="exid" name="exid" value="">
+   <input type="hidden" id="exppic" name="exppic" value="N">
+   <input type="hidden" id="exmpic" name="exmpic" value="N">
+   <input type="hidden" id="excurrentpic" name="excurrentpic" value="">
+   <label>Phone:</label><br><input type="text" id="exphone" name="exphone" placeholder="+44 12345678" value=""><br>
+   <label>Email:</label><br><input type="text" id="exemail" name="exemail" value=""><br>
+   <label>Date of Birth:</label><br><input type="text" id="exdob" name="exdob" placeholder="Format 1990/02/29" value=""><br>
+   <label>Address 1:</label><br><input type="text" id="exaddress1" name="exaddress1" value=""><br>
+   <label>Address 2:</label><br><input type="text" id="exaddress2" name="exaddress2" value=""><br>
+   <label>City:</label><br><input type="text" id="excity" name="excity" value=""><br>
+   <label>Region:</label><br><input type="text" id="exregion" name="exregion" placeholder="State, region, or county" value=""><br>
+   <label>Postcode:</label><br><input type="text" id="expostcode" name="expostcode" value=""><br>
+   <label>Country:</label><br><input type="text" id="excountry" name="excountry" value=""><br>
+   <label>How RU:</label><br><textarea id="exhru" name="exhru" style="height:12mm; width:125mm;"></textarea><p>
+   <input type="file" style="display:none;" id="expic" name="expic" onchange="updateLabel(1);">
+   <span>Your Picture: </span><label id="excflabel" for="expic" title="None chosen" class="clicktext" style="cursor: pointer;">Choose</label><p>
+   <input type="file" style="display:none;" id="exmug" name="exmug" onchange="updateLabel(2);">
+   <span>Mugshot:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
+         <label id="exmuglabel" for="exmug" title="None chosen" class="clicktext" style="cursor:pointer;">Choose</label><br>
+   <div style="margin:10pt 0 5pt 0;">
+   <span class="dialogX" style="cursor:pointer; margin-left:0.5em;" id="exclosec" onclick="editRevert();">X</span>
+   <input id="exgo" type="submit" style="display:none;">
+   <label id="exgolabel" for="exgo" class="clicktext" style="margin-left:0.6em; cursor:pointer;">Save It</label>
+   <span class="clicktext" style="margin-left:0.6em; cursor:pointer;" onclick="requestPWReset();">Request Password Reset</span>
+   </div>
+   </form>
+   </div>
+
+   <div id="ecdlg" class="dialog mexdlg" style="display:none;" data-savedpos="0">
+   <h3>Enter your comment</h3>
+   <div style="padding:0.2em 0 0.4em 0; width:100%; display:block;">
+   <span class="clicktext" style="font-weight: 900; cursor pointer;" onclick=addStrong("ecta");>B</span>
+   <span class="clicktext" style="font-style:italic; cursor pointer;" onclick=addItalic("ecta");>i</span>
+   <span class="clicktext" style="cursor pointer;" onclick=addLink("ecta");>Lnk</span>
+   <span class="clicktext" style="cursor pointer;" onclick=addUl("ecta");>Ul</span>
+   <span class="clicktext" style="cursor pointer;" onclick=addOl("ecta");>Ol</span><br>
+   </div>
+   <textarea id="ecta" style="height:100px; margin-bottom:10px; width:95%; font-size:11pt;"></textarea><br>
+   <div>
+   <span class="dialogX" style="cursor:pointer; margin-left:0.5em;" id="updateclose" onclick="switch2feed();">X</span>
+   <span id="ecgo" onclick="handleComment(true);" class="clicktext" style="margin-left:0.6em;cursor:pointer;">Post Comment</span>
+   </div>
+   </div>
+
+   <div id="feedselect" class="dialog mexdlg" style="display:none;" data-checked="fs_latest" data-qs="&rt=latest" data-savedpos="0">
+   <h3>Choose newsfeed view</h3>
+   <ul style="list-style-type: none;">
+   <li style="margin-bottom: 1em;"><input id="fs_latest" type="radio" name="seltype" value="latest" checked><label for="fs_latest">Latest first:</label></li>
+   <li style="margin-bottom: 1em;"><input id="fs_oldest" type="radio" name="seltype" value="oldest"><label for="fs_oldest">Oldest first:</label></li>
+   <li style="margin-bottom: 1em;"><input id="fs_range" type="radio" name="seltype" value="range"><label for="fs_range">Month/Year:</label></li>
+   </ul>
+   <input type="text" id="fs_monthyear"name="monthyear" placeholder="e.g. Jan 2015"; style="font-size:14pt; width:75%; margin-left:1em;"><p>
+   <div>
+   <span class="dialogX" style="cursor:pointer; margin-left:0.5em;" id="updateclose" onclick="switch2feed();">X</span>
+   <span id="fselgo" onclick="setFeedQS();" class="clicktext" style="margin-left:0.6em;cursor:pointer;">Apply</span>
+   </div>
+   </div>
+
+   <div id="updatedlg" class="dialog mexdlg" style="display:none;" data-savedpos="0">
+   <h3>Modify or Delete a Post or Comment</h3>
+   <input type="hidden" id="updid" value=""  />
+   <div id="statustools" style="padding:0.2em 0 0.4em 0; width:100%; display:block;">
+   <span class="clicktext" style="font-weight: 900; cursor pointer;" onclick=addStrong("updatete");>B</span>
+   <span class="clicktext" style="font-style:italic; cursor pointer;" onclick=addItalic("updatete");>i</span>
+   <span class="clicktext" style="cursor pointer;" onclick=addTitle("updatete");>Hdr</span>
+   <span class="clicktext" style="cursor pointer;" onclick=addLink("updatete");>Lnk</span>
+   <span class="clicktext" style="cursor pointer;" onclick=addUl("updatete");>Ul</span>
+   <span class="clicktext" style="cursor pointer;" onclick=addOl("updatete");>Ol</span><br>
+   </div>
+   <div id="commenttools" style="padding:0.2em 0 0.4em 0; width:100%; display:block;">
+   <span class="clicktext" style="font-weight: 900; cursor pointer;" onclick=addStrong("updatete");>B</span>
+   <span class="clicktext" style="font-style:italic; cursor pointer;" onclick=addItalic("updatete");>i</span>
+   <span class="clicktext" style="cursor pointer;" onclick=addLink("updatete");>Lnk</span>
+   <span class="clicktext" style="cursor pointer;" onclick=addUl("updatete");>Ul</span>
+   <span class="clicktext" style="cursor pointer;" onclick=addOl("updatete");>Ol</span><br>
+   </div>
+   <textarea id="updatete" style="width:95%; height:200px; margin-bottom:10px; font-size:11pt; overflow:auto"></textarea><br>
+
+   <span class="dialogX" style="cursor:pointer; margin-left:0.5em;" id="updateclose" onclick="switch2feed();">X</span>
+   <span id="updateapply" onclick="updateHandler(1);" class="clicktext" style="margin-left:0.6em;cursor:pointer;">Apply</span>
+   <span id="updatedel" onclick="updateHandler(2);" class="clicktext" style="margin-left:0.6em; cursor:pointer;">Delete item</span>
+   </div>
+
+</div> <!-- dlgcontainer -->
+<!--
+<div id="picdiv" style="position:absolute; left:0px; top:0px; width:100%; background-color: #000; display:none;
+         z-index:10000; background: rgb(0, 0, 0); background: rgba(0, 0, 0, 0.6);">
+   <img class="picdivclose" src="/common/close.png" style="margin:3px 0 0 10px;"/>
+   <img class="picdivclose" src="/common/close.png" style="float:right; margin:3px 10px 0 0;"/><br style="clear:both;"/>
+   <img id="picdivpic" src="" style="margin:10px;"/>
+</div>
+-->
+<div id="therest">
+
+   <div id="feed" class="hdiv" style="width:100%;" data-latest="-1" data-savedpos="0" data-feedview="latest" data-timeout="0">
+      <div id="logoutdiv" class="topmenu">
+      <span class="menuspan trigger" data-assocdiv="messages">&nbsp;You/Me</span> |
+      <span class="menuspan trigger" data-assocdiv="members">Group</span> |
+      <span class="menuspan" onClick="doLogout();">[-&gt;</span>
+      </div>
+
+      <div id="invite_div" style="margin:0.5em 0 1em 0; height:2.5em; width:100%; display:block;">
+      <span id="invite_status" onclick="showEnterStatus(true);" class="invite">What's up?</span>
+      <span id="selectspan" class="clicktext" style="cursor:pointer; border:solid  1px #aaaaaa;"
+                  onclick="switch2feedselect();">Latest</span>
+      </div>
+
+      <div id="enter_status"
+         style="border:1px solid #bbbbbb; font-size:11pt; padding:2px 0 5px 10px; margin:0 0 1em 2px; width:97%; display:none;">
+         <div style="padding:0.2em 0 0.4em 0; width:100%;">
+         <span class="clicktext" style="font-weight: 900; cursor pointer;" onclick=addStrong("status_te");>B</span>
+         <span class="clicktext" style="font-style:italic; cursor pointer;" onclick=addItalic("status_te");>i</span>
+         <span class="clicktext" style="cursor pointer;" onclick=addTitle("status_te");>Hdr</span>
+         <span class="clicktext" style="cursor pointer;" onclick=addLink("status_te");>Lnk</span>
+         <span class="clicktext" style="cursor pointer;" onclick=addUl("status_te");>Ul</span>
+         <span class="clicktext" style="cursor pointer;" onclick=addOl("status_te");>Ol</span>
+         <span class="clicktext" style="cursor pointer;" onclick=addPic("status_te");>Pic</span><br>
+         </div>
+         <form id="status_form" method="post" enctype="multipart/form-data">
+         <input type="hidden" id="sposted" name="logtype" value="0"/>
+         <input type="hidden" id="slogtype" name="logtype" value="1"/>
+         <input type="hidden" id="sdept" name="dept" value="0"/>
+         <input type="hidden" id="contribid" name="contribid" value="0"/>
+         <input type="hidden" id="stpichi" name="stpichi" value="N">
+         <textarea id="status_te" name="status"
+         placeholder="What's up?" style="border:solid 1px #bbbbbb; height:25mm; width:95%; margin:2px 0 10px 2px; resize:none;"></textarea><br>
+         <input name="file" id="stpic" size="27" type="file" style="display:none;" onchange="updateLabel(3);"/>
+         <span class="dialogX" style="cursor:pointer;" id="updateclose" onclick="showEnterStatus(false);">X</span>
+         <label id="stpiclabel" for="stpic" title="No file chosen yet" class="clicktext" style="cursor: pointer; margin-left:0.5em;">Choose File</label>
+         <input id="sfgo" type="submit" style="display:none;">
+         <label id="sfgolabel" for="sfgo" class="clicktext" style="cursor:pointer; margin-left:0.5em;">Post It</label>
+         </form>
+      </div>
+
+      <div id="feedbody" style="width:100%; padding:0 0 0 0;"></div> <!-- This will get filled from fillfeed.php -->
+   </div> <!-- feed -->
+
+   <!--  Members div -->
+   <div id="members" class="hdiv" style="display:none;" data-latest="-1" data-savedpos="0" data-timeout="0">
+      <div id="mmenudiv" class="topmenu">
+      <span class="menuspan trigger" data-assocdiv="feed">&nbsp;Feed</span> |
+      <span id="messtrigger" class="menuspan trigger" data-assocdiv="messages">You/Me</span> |
+      <span id="inditrigger" class="menuspan trigger" style="display:none;" data-assocdiv="individual"></span>
+      <span class="menuspan" onClick="doLogout();">[-></span>
+      </div>
+
+      <h2 style="margin:0.5em 0 0.5em 0; padding:0px;">Group Members</h2>
+      <span class="clicktext" style="cursor:pointer;" onclick="switch2register();">Enrol</span> a new member.<p>
+      <div id="memberlist"></div> <!-- this will get filled by fillmembers.php if it is ever shown -->
+   </div> <!-- members -->
+
+   <!--  Individual div -->
+   <div id="individual" class="hdiv" style="display:none;" data-loaded="N" data-uid="-1" data-savedpos="0">
+      <div id="mmenudiv" class="topmenu">
+      <span class="menuspan trigger" data-assocdiv="feed">&nbsp;Feed</span> |
+      <span class="menuspan trigger" data-assocdiv="messages">You/Me</span> |
+      <span class="menuspan trigger" data-assocdiv="members">Group</span> |
+      </div>
+
+      <h2 id="membername" style="margin:0.5em 0 0.5em 0; padding:0px;">???</h2>
+      <div id="idata"></div> <!-- this will get filled by fillindividual.php if it is ever shown -->
+      <div id="canedit" style="display:none; margin-top:1.2em;"><span class="ullinks"
+                     onclick="switch2edit();">Edit</span> your info.</div><p>
+   </div> <!-- Individual -->
+
+   <!-- Messages div -->
+   <div id="messages" class="hdiv" style="display:none;">
+      <div id="msgmenudiv" class="topmenu">
+         <span class="menuspan trigger" data-assocdiv="feed">&nbsp;Feed</span> |
+         <span class="menuspan trigger" data-assocdiv="members">Group</span> |
+         <span class="menuspan" onClick="doLogout();">[-></span>
+      </div>
+      <div id="conversation" data-oid="-1" data-savedpos="0" data-oname="">
+         <div style="padding:0.2em 0 0.4em 0; width:100%;">
+         <span class="clicktext" style="font-weight: 900; cursor pointer;" onclick=addStrong("newmsg");>B</span>
+         <span class="clicktext" style="font-style:italic; cursor pointer;" onclick=addItalic("newmsg");>i</span>
+         <span class="clicktext" style="cursor pointer;" onclick=addLink("newmsg");>Lnk</span>
+         <span class="clicktext" style="cursor pointer;" onclick=addUl("newmsg");>Ul</span>
+         <span class="clicktext" style="cursor pointer;" onclick=addOl("newmsg");>Ol</span>
+         <span class="clicktext" style="cursor pointer;" onclick=addPic("newmsg");>Pic</span><br>
+         </div>
+         <div id="msgentry" style="display:block">
+            <form id="msg_form" method="post" enctype="multipart/form-data">
+            <input type="hidden" id="msgformto" name="msgformto" value="" />
+            <input type="hidden" id="msgformname" name="msgformname" value="" />
+            <input type="hidden" id="msgformfrom" name="msgformfrom" value="" />
+            <textarea id="newmsg" name="newmsg" rows="6" class="msgta"
+                       style="width:98%;" onkeyup="logMessageChange();" placeholder="New message"></textarea><p>
+            <input name="msgfile" id="msgfile" size="27" type="file" style="display:none;" onchange="updateLabel(4);"/>
+            <label class="clicktext" id="msgfilelabel" for="msgfile" title="No file chosen yet" style="cursor: pointer;">Choose File</label><p>
+            <span class="clicktext" id="msgclearnew" style="cursor:pointer; margin-right:0.5em;" onclick="clearMsgDlg();">Clear</span>
+            <input id="msggo" type="submit" style="display:none;">
+            <label class="clicktext" id="msggolabel" for="msggo" style="cursor:pointer; margin-right:0.5em;">Post</label>
+            <span class="clicktext" id="tothreads" onclick="toThreads();" style="cursor:pointer;">Threads</span><br>
+            </form>
+         </div>
+         <!-- List of messages between logged user and selected other user -->
+         <div id="msgcontent" style="display:block">
+            <h2 id="between"><span id="msgfrom">?</span> &lt;&gt; <span id="msgto">?</span>.</h2>
+            ------ <span id="msgtoname"></span> <span id="msgtoonline">Elsewhere</span> <span id="msgtotyping" style="color:green;"></span> ------<p>
+            <!-- this following div contains all the message lists loaded so far - only one showing -->
+            <div id="themessages" data-cached="" data-current="-1"></div>
+         </div>
+      </div>
+      <!-- List of logged user message threads -->
+      <div id="threads" style="display:block;" data-savedpos="0" data-timeout="0">
+         <h2 style="margin:0.5em 0 0.5em 0; padding:0px;">Message Threads</h2>
+         <div id="threadlist" data-latest="-1"></div>
+      </div>
+   </div> <!-- Messages div-->
+
+   <!-- </div> settings -->
+</div> <!-- therest -->
+   <div id="blurb" style="width:80%; display:none;">
+      <h2>What is FnF?</h2>
+      There is an increasing number of people who were once addicted to Facebook etc, who have become disillusioned by these services.
+      They do too much advertising, and submit a constant stream of notifications and friend requests unless you take the trouble to
+      find out how to turn them off. If there is competition they buy the competing company.
+      <p>
+      Also they require you to submit a quantity of personal information in order to use them to their maximum capability.
+      What they do with that information, and who has access to it, we do not know.
+      <p>
+      How would it be if you could communicate with your friends and family without all that stuff, and with your personal data
+      entrusted to a single nominated administrator.
+      <p>
+      Friends and Families - FnF for short, provides these capabilities.
+      <p>
+      But who will pay for it, you may well ask. Well you will! A typical family group might well include 30 members, and with invited friends,
+      probably more. So together, to pay for a private Internet hosting, each member might have to chip in less than $1 a month.
+      If there's someone in the group who is computer savvy, that might be the only cost. If not, services will be available to set up and
+      administer your system for a small fee.
+      <p>
+      Companies who don't already have an internal communication system might also find it attractive. It can easily be customized,
+      and it's easy to set up an in-house server for it.
+      <p>
+      What can FnF do? Well it provides a group forum where any member can post articles/posts viewable by all members of the group -
+      a group news-feed. Such posts can be accompanied by a attachments:
+      <ul>
+      <li>A picture (.jpg, .png, .gif),</li>
+      <li>An audio file (.mp3),</li>
+      <li>A video (.mp4),</li>
+      <li>FnF specific text files for various effects (.fnfx),</li>
+      <li>Text file (.txt, .html, .js, .php, .c and so on),</li>
+      <li>Other file types for download.,</li>
+      </ul>
+      Individual members of the group can exchange messages not viewable by other group members, also accompanied by
+      similar media or other file attachments.
+      <p>
+      The membership information can be viewed, including a profile picture, a general statement about the members' availability or situation,
+      and all that information you forget about your relatives - birthday, address, phone number, email address, and so on.
+      <p>
+      Membership is by invitation, and can only be initiated by an existing member. So you'll get an SMS or a phone call asking if you'd like to join,
+      and the sender will enrol you if you agree. Non members who visit the app will simply be unable to log in,
+      and they can't just register themselves as a user.
+      <p>
+      FnF is designed with the needs of an inexpensive shared hosting in mind. Such hosts often don't have https available, so FnF uses
+      encryption to send login and authentication information in a form not easily broken into by someone listening to your Internet communications.
+      <p>
+      To view the mobile version navigate to <b>britseyeview.com/fnf/m/</b>
+   </div> <!-- end of blurb -->
+
+</div> <!-- mainpane -->
+</body>
+</html>
